@@ -1,0 +1,46 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql-bootcamp-server
+    environment:
+      - ACCEPT_EULA=${ACCEPT_EULA:-Y}
+      - SA_PASSWORD=${SA_PASSWORD:-YourStrong@Passw0rd}
+      - MSSQL_PID=${MSSQL_PID:-Express}
+    ports:
+      - "${HOST_PORT:-1433}:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./scripts:/scripts
+      - ./backups:/var/backups
+    networks:
+      - sql-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${SA_PASSWORD:-YourStrong@Passw0rd} -Q 'SELECT 1' -C"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Optional: Adminer for web-based database management
+  adminer:
+    image: adminer:latest
+    container_name: sql-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - sql-network
+    restart: unless-stopped
+    environment:
+      - ADMINER_DEFAULT_SERVER=sqlserver
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+volumes:
+  sqlserver_data:
+    driver: local
+
+networks:
+  sql-network:
+    driver: bridge
